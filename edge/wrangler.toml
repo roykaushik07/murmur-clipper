@@ -1,0 +1,11 @@
+name = "murmur-clips-edge"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+routes = [{ pattern = "clips.murmurclips.app/*", zone_name = "murmurclips.app" }]
+
+[vars]
+ORIGIN_URL = "https://murmur-clipper.fly.dev"
+
+[[r2_buckets]]
+binding = "CLIPS"
+bucket_name = "murmur-clips"
