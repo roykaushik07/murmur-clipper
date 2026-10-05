@@ -1,0 +1,10 @@
+app = "murmur-clipper"
+primary_region = "lhr"
+
+[env]
+  MURMUR_API_URL = "https://api.murmurclips.app"
+  R2_ENDPOINT = "https://8f3c2a1b9d7e4f60a5b1c2d3e4f5a6b7.r2.cloudflarestorage.com"
+  RUST_LOG = "info,murmur_clipper=debug"
+
+[[vm]]
+  size = "performance-2x"
