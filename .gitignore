@@ -1,0 +1,4 @@
+/target
+.env
+edge/node_modules/
+edge/.wrangler/
