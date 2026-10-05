@@ -4,7 +4,9 @@ use serde_json::json;
 
 pub async fn clip_ready(http: &reqwest::Client, render_id: &str, episode_id: &str, key: &str) -> Result<()> {
     let base = std::env::var("MURMUR_API_URL")?;
+    let token = std::env::var("MURMUR_WEBHOOK_TOKEN")?;
     http.post(format!("{base}/webhooks/clipper"))
+        .bearer_auth(token)
         .json(&json!({ "event": "clip.ready", "renderId": render_id, "episodeId": episode_id, "key": key }))
         .send()
         .await?
