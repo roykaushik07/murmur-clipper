@@ -5,9 +5,17 @@ mod storage;
 
 use std::{path::PathBuf, sync::Arc};
 
-use axum::{extract::State, http::StatusCode, routing::{get, post}, Json, Router};
+use axum::{
+    body::Body,
+    extract::{Path as AxumPath, State},
+    http::{header, HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Json, Router,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tokio_util::io::ReaderStream;
 
 struct AppState {
     storage: storage::Storage,
@@ -40,6 +48,24 @@ async fn render_clip(State(st): State<Arc<AppState>>, Json(req): Json<RenderRequ
     (StatusCode::ACCEPTED, Json(json!({ "renderId": render_id })))
 }
 
+async fn get_clip(State(st): State<Arc<AppState>>, AxumPath(key): AxumPath<String>) -> Response {
+    match st.storage.open(&key).await {
+        Ok(Some((reader, len))) => {
+            let mut res = Response::new(Body::from_stream(ReaderStream::new(reader)));
+            res.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("video/mp4"));
+            if let Some(len) = len {
+                res.headers_mut().insert(header::CONTENT_LENGTH, HeaderValue::from(len));
+            }
+            res
+        }
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!(key = %key, error = %e, "clip fetch failed");
+            StatusCode::BAD_GATEWAY.into_response()
+        }
+    }
+}
+
 async fn run(st: &AppState, render_id: &str, req: RenderRequest) -> anyhow::Result<()> {
     let dir = std::env::temp_dir();
     let ass_path: PathBuf = dir.join(format!("{render_id}.ass"));
@@ -61,7 +87,8 @@ async fn run(st: &AppState, render_id: &str, req: RenderRequest) -> anyhow::Resu
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::from_default_env()).init();
     let state = Arc::new(AppState { storage: storage::Storage::from_env().await, http: reqwest::Client::new() });
-    let app = Router::new().route("/healthz", get(healthz)).route("/v1/render", post(render_clip)).with_state(state);
+    let app = Router::new().route("/healthz", get(healthz)).route("/v1/render", post(render_clip))
+        .route("/v1/clips/*key", get(get_clip)).with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
     axum::serve(listener, app).await?;
     Ok(())

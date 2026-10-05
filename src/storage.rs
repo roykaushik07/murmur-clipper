@@ -3,6 +3,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use aws_sdk_s3::{primitives::ByteStream, Client};
+use tokio::io::AsyncRead;
 
 pub struct Storage {
     client: Client,
@@ -29,5 +30,17 @@ impl Storage {
             .send()
             .await?;
         Ok(())
+    }
+
+    /// Opens an object for streaming. Returns `None` when the key does not exist.
+    pub async fn open(&self, key: &str) -> Result<Option<(Box<dyn AsyncRead + Send + Unpin>, Option<i64>)>> {
+        match self.client.get_object().bucket(&self.bucket).key(key).send().await {
+            Ok(out) => {
+                let len = out.content_length();
+                Ok(Some((Box::new(out.body.into_async_read()), len)))
+            }
+            Err(e) if e.as_service_error().map_or(false, |se| se.is_no_such_key()) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 }

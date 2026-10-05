@@ -18,6 +18,6 @@ export default {
       return new Response(obj.body, { headers });
     }
     // Not in R2 yet (e.g. still rendering): fall back to the origin.
-    return fetch(new Request(`${env.ORIGIN_URL}/${key}`, request));
+    return fetch(new Request(`${env.ORIGIN_URL}/v1/clips/${key}`, request));
   },
 } satisfies ExportedHandler<Env>;
